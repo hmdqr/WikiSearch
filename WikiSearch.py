@@ -4,12 +4,16 @@ from custome_errors import *
 sys.excepthook = my_excepthook
 import wx
 import json
-import nlpia2_wikipedia as wikipedia
+try:
+	import nlpia2_wikipedia as wikipedia
+except ModuleNotFoundError:
+	import wikipedia
 import threading 
 import webbrowser
 import datetime
 import os
 import sys
+import pyperclip
 #change working dir to main exe dir
 #os.chdir(os.path.dirname(sys.argv[0]))
 import globals as g
@@ -125,7 +129,8 @@ class window(wx.Frame):
 			self.AutoDetect()
 		# Check if the is there update in case the feature is enabled.
 		if CurrentSettings["auto update"] == "True":
-			threading.Thread(target=self.OnCheckForItem(None, AutoCheck="yes"), daemon=True).start()
+			# Run update check in a background thread without invoking the function immediately
+			threading.Thread(target=self.OnCheckForItem, kwargs={"event": None, "AutoCheck": "yes"}, daemon=True).start()
 
 		# events for buttons
 		self.StartSearch.Bind(wx.EVT_BUTTON, self.OnViewSearch)

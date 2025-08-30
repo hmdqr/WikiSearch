@@ -2,7 +2,10 @@
 # import project libraries.
 import wx
 import wx.adv
-import nlpia2_wikipedia as wikipedia
+try:
+	import nlpia2_wikipedia as wikipedia
+except ModuleNotFoundError:
+	import wikipedia
 import pyperclip
 import webbrowser
 import accessible_output2.outputs.auto

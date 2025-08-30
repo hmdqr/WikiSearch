@@ -1,7 +1,10 @@
 #-*- coding: utf-8 -*-
 # import project libraries.
 import wx
-import nlpia2_wikipedia as wikipedia
+try:
+	import nlpia2_wikipedia as wikipedia
+except ModuleNotFoundError:
+	import wikipedia
 import threading 
 import pyperclip
 import webbrowser

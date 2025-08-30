@@ -5,7 +5,19 @@ import requests
 import json
 import urllib.parse
 from bs4 import BeautifulSoup
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
+from requests.exceptions import RequestException
+try:
+	import wx  # UI fallback for error messages
+except Exception:
+	wx = None
+
+# Ensure '_' exists even before gettext.install is called elsewhere
+try:
+	_  # type: ignore[name-defined]
+except NameError:
+	def _(s: str) -> str:  # noqa: N802
+		return s
 
 # Create a function to add translations to the program
 # This function is used to identify the program with translations added to it by contributors
@@ -44,22 +56,27 @@ def DisableLink(HtmlContent):
 	result = re.sub(pattern, 'role="link" aria-disabled="false"', HtmlContent, flags=re.MULTILINE)
 	return result
 
-def GetOnlineInfo():
+def GetOnlineInfo(timeout: int = 10):
 
-	#load and read gson online file
+	# Load and read json online file with timeout and graceful errors
 	url = "https://raw.githubusercontent.com/tecwindow/WikiSearch/main/WikiSearch.json"
-	response = urlopen(url)
-	data_json = json.loads(response.read())
-
-	#Putting information into a dictionary.
-	info = {
-	"name": data_json["name"],
-	"version": data_json["version"],
-	"What's new": data_json["What's new"],
-	"url": data_json["url"]
-	}
-
-	return info
+	try:
+		# Use urllib with a UA to avoid some CDNs blocking
+		req = Request(url, headers={"User-Agent": "WikiSearch/1.4 (Windows)"})
+		with urlopen(req, timeout=timeout) as response:
+			data = response.read()
+		data_json = json.loads(data)
+		# Putting information into a dictionary.
+		info = {
+			"name": data_json.get("name"),
+			"version": data_json.get("version"),
+			"What's new": data_json.get("What's new", ""),
+			"url": data_json.get("url"),
+		}
+		return info
+	except Exception:
+		# Propagate a controlled failure to caller; they already handle AutoCheck UI
+		raise
 
 	# Delete The empty lines.
 def remove_blank_lines(text):
@@ -69,22 +86,25 @@ def remove_blank_lines(text):
     return text
 
 # Getting the tables of article.
-def GetTables(url):
+def GetTables(url: str, timeout: int = 10):
 
-	reqs = requests.get(url)
-
-	# using the BeautifulSoup module
-	soup = BeautifulSoup(reqs.content, "html.parser")
-
-	tables = soup.find_all("table")
 	TablesText = []
- 
-	for i in range(len(tables)):
-		content = tables[i].text
-		content = remove_blank_lines(content)
-		TablesText.append(content + "\n")
-
-	return TablesText
+	try:
+		resp = requests.get(url, timeout=timeout, headers={"User-Agent": "WikiSearch/1.4 (Windows)"})
+		resp.raise_for_status()
+		soup = BeautifulSoup(resp.content, "html.parser")
+		tables = soup.find_all("table")
+		for tbl in tables:
+			content = tbl.get_text()
+			content = remove_blank_lines(content)
+			TablesText.append(content + "\n")
+		return TablesText
+	except RequestException:
+		# Network issue: return empty list so UI can continue without tables
+		return []
+	except Exception:
+		# Any parsing/unexpected errors should not crash the UI
+		return []
 
 # Include List of languages in JSON format.
 def LanguageJSON():
